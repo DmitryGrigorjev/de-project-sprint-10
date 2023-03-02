@@ -8,7 +8,20 @@ CREATE TABLE GRIGORJEVDEYANDEXRU__STAGING.currencies
 )
 -- сортировка и  сегментация
 ORDER BY date_update
-SEGMENTED BY hash(date_update) all nodes
+SEGMENTED BY date_update::date all nodes
+PARTITION BY date_update::date;
+
+-- проекция с обратной сортировкой по дате
+CREATE PROJECTION GRIGORJEVDEYANDEXRU__STAGING.currencies_proj_dt as
+SELECT
+    date_update,
+    currency_code,
+    currency_code_with,
+    currency_with_div 
+FROM
+    GRIGORJEVDEYANDEXRU__STAGING.currencies
+ORDER BY date_update DESC
+SEGMENTED BY date_update::date all nodes
 PARTITION BY date_update::date;
 
 DROP TABLE IF EXISTS GRIGORJEVDEYANDEXRU__STAGING.transactions CASCADE;
@@ -25,8 +38,27 @@ CREATE TABLE GRIGORJEVDEYANDEXRU__STAGING.transactions
 	transaction_dt datetime
 )
 -- сортировка и  сегментация
-ORDER BY operation_id,transaction_dt
-SEGMENTED BY operation_id,transaction_dt all nodes
+ORDER BY hash(transaction_dt,operation_id)
+SEGMENTED BY hash(transaction_dt,operation_id) all nodes
+PARTITION BY hash(transaction_dt,operation_id);
+
+-- да, упустил момент
+-- думаю пригодится проекция, отсортированная по убыванию дат
+CREATE PROJECTION GRIGORJEVDEYANDEXRU__STAGING.transactions_proj_dt as
+SELECT
+    operation_id,
+    account_number_from,
+    account_number_to,
+    currency_code,
+	country,
+	status,
+	transaction_type,
+	amount,
+	transaction_dt
+FROM
+    GRIGORJEVDEYANDEXRU__STAGING.transactions
+ORDER BY transaction_dt DESC
+SEGMENTED BY transaction_dt::date all nodes
 PARTITION BY transaction_dt::date;
 
 -- для инкрементальной загрузки
